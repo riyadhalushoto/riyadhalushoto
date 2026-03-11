@@ -12,7 +12,6 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const User = require("./models/User");
-// Import des routes
 const postsRoutes = require("./routes/posts");
 const usersRoutes = require("./routes/users");
 const studentsRoutes = require("./routes/students");
@@ -25,26 +24,26 @@ const authenticate = require("./middleware/auth");
 
 const app = express();
 
-// --- CONFIGURATION DOSSIER UPLOADS ---
 const uploadPath = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
 }
 
-// --- CONFIGURATION CORS (Production + Local) ---
 const allowedOrigins = [
-  "https://riyadhalushoto.vercel.app", // REMPLACE PAR TON URL VERCEL FINAL
+  "https://riyadhalushoto.vercel.app",
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS non autorisé'), false);
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS non autorisé'));
     }
-    return callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
 }));
 
 app.use(express.json());
@@ -52,42 +51,35 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/uploads", express.static(uploadPath));
 
-// --- CONNEXION MONGODB ---
 mongoose
   .connect(process.env.MONGO_URI || process.env.MONGODB_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.log("❌ MongoDB Error:", err));
 
-// --- UTILITAIRES JWT ---
 const generateAccessToken = (user) =>
   jwt.sign(
     { id: user._id, role: user.role, email: user.email },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || "access_secret",
     { expiresIn: "15m" }
   );
 
 const generateRefreshToken = (user) =>
-  jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET || "fallback_refresh_secret", {
+  jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET || "refresh_secret", {
     expiresIn: "7d"
   });
 
-// --- CONFIGURATION MULTER ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
 });
 const upload = multer({ storage });
 
-/* -------------------- AUTHENTICATION -------------------- */
-
-// Dans server.js, remplace la route app.post("/register", ...) par celle-ci :
 app.post("/register", upload.single("photo"), async (req, res) => {
   try {
-    // On récupère TOUS les champs envoyés par le frontend
     const { 
       firstName, middleName, lastName, username, email, 
       password, phone, region, studentNumber,
-      dob, nationality, idNumber, country // <-- Ajoute ces champs ici
+      dob, nationality, idNumber, country 
     } = req.body;
 
     if (!firstName || !lastName || !username || !email || !password) {
@@ -102,35 +94,20 @@ app.post("/register", upload.single("photo"), async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = new User({
-      firstName,
-      middleName,
-      lastName,
-      username,
-      email,
-      phone,
-      region,
-      studentNumber,
-      dob,           // <-- N'oublie pas de les ajouter au modèle
-      nationality,   // <-- N'oublie pas de les ajouter au modèle
-      idNumber,      // <-- N'oublie pas de les ajouter au modèle
-      country,       // <-- N'oublie pas de les ajouter au modèle
+      firstName, middleName, lastName, username, email, phone, region,
+      studentNumber, dob, nationality, idNumber, country,
       password: hashedPassword,
       role: "student",
       photoUrl: req.file ? "/uploads/" + req.file.filename : null
     });
 
     await user.save();
-    console.log("✅ Utilisateur créé :", username);
     res.status(201).json({ message: "Compte créé avec succès" });
-
   } catch (err) {
-    console.error("REGISTER ERROR:", err);
     res.status(500).json({ message: "Erreur serveur : " + err.message });
   }
 });
 
-
-// Login
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -148,8 +125,8 @@ app.post("/login", async (req, res) => {
 
     res.cookie("accessToken", accessToken, { 
         httpOnly: true, 
-        secure: true, // Requis pour HTTPS sur Render/Vercel
-        sameSite: "None", // Requis pour les cookies cross-origin
+        secure: true, 
+        sameSite: "None", 
         maxAge: 15 * 60 * 1000 
     });
 
@@ -158,12 +135,10 @@ app.post("/login", async (req, res) => {
       user: { id: user._id, username: user.username, role: user.role, photoUrl: user.photoUrl }
     });
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
 
-/* -------------------- ROUTES -------------------- */
 app.use("/posts", postsRoutes);
 app.use("/users", usersRoutes);
 app.use("/students", studentsRoutes);
@@ -172,7 +147,6 @@ app.use("/messages", messagesRoutes);
 app.use("/payments", paymentsRoutes);
 app.use("/verify", verifyRoutes);
 
-/* -------------------- SERVER & SOCKET.IO -------------------- */
 const server = http.createServer(app);
 const io = new Server(server, { 
     cors: { 
@@ -190,7 +164,6 @@ io.on("connection", (socket) => {
     onlineUsers[userId] = socket.id;
     io.emit("user_online", userId);
   });
-
   socket.on("disconnect", () => {
     for (const userId in onlineUsers) {
       if (onlineUsers[userId] === socket.id) {
@@ -201,14 +174,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-// Gestion du déploiement Frontend (si servi par le même serveur)
-if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../frontend/dist")));
-    app.get("*", (req, res) => {
-        res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
-    });
-}
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
