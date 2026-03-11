@@ -4,7 +4,7 @@ import { useAuth } from "../AuthContext";
 export default function Notifications() {
   const [list, setList] = useState<any[]>([]);
   const { user } = useAuth();
-  const API_URL = "http://localhost:5000";
+  const API_URL = "https://riyadhalushoto.onrender.com";
 
   useEffect(() => {
     if (user && user.id) {
