@@ -37,7 +37,7 @@ export default function PostFeed() {
     };
   }, []);
   async function loadPosts() {
-    const res = await fetch("http://localhost:5000/posts");
+    const res = await fetch("https://riyadhalushoto.onrender.com/posts");
     const data = await res.json();
     setPosts(data);
   }
@@ -48,7 +48,7 @@ export default function PostFeed() {
     formData.append("content", content);
     formData.append("userId", userId || "");
     if (media) formData.append("media", media);
-    const res = await fetch("http://localhost:5000/posts", {
+    const res = await fetch("https://riyadhalushoto.onrender.com/posts", {
       method: "POST",
       body: formData,
     });
@@ -59,7 +59,7 @@ export default function PostFeed() {
     setMedia(null);
   }
   async function toggleLike(postId: string) {
-    const res = await fetch(`http://localhost:5000/posts/${postId}/like`, {
+    const res = await fetch(`https://riyadhalushoto.onrender.com/posts/${postId}/like`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
@@ -68,7 +68,7 @@ export default function PostFeed() {
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
   }
   async function addComment(postId: string, text: string) {
-    const res = await fetch(`http://localhost:5000/posts/${postId}/comment`, {
+    const res = await fetch(`https://riyadhalushoto.onrender.com/posts/${postId}/comment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, text }),
