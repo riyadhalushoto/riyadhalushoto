@@ -1,0 +1,235 @@
+const express = require("express");
+const router = express.Router();
+const multer = require("multer");
+const path = require("path");
+const Post = require("../models/Post");
+const User = require("../models/User");
+const Notification = require("../models/Notification");
+const mongoose = require("mongoose");
+
+// ================= MULTER CONFIGURATION =================
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + path.extname(file.originalname))
+});
+
+const upload = multer({ storage });
+
+// ================= HELPER OBJECT ID =================
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// ================= FEED AVEC PAGINATION (TOUS LES POSTS) =================
+router.get("/", async (req, res) => {
+  try {
+    const { page = 1, limit = 5 } = req.query;
+
+    const posts = await Post.find({})
+      .populate("createdBy", "username photoUrl")
+      .populate("comments.user", "username photoUrl")
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit));
+
+    res.json(Array.isArray(posts) ? posts : []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= EXPLORER (posts populaires) =================
+router.get("/explore", async (req, res) => {
+  try {
+    const posts = await Post.find({})
+      .sort({ likes: -1 })
+      .limit(20)
+      .populate("createdBy", "username photoUrl")
+      .populate("comments.user", "username photoUrl");
+
+    res.json(Array.isArray(posts) ? posts : []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= CREATE POST =================
+router.post("/", upload.single("media"), async (req, res) => {
+  try {
+    const { content, userId } = req.body;
+
+    if (!userId || !isValidObjectId(userId)) {
+      return res.status(400).json({ message: "userId missing or invalid" });
+    }
+
+    const post = await Post.create({
+      content,
+      createdBy: new mongoose.Types.ObjectId(userId),
+      mediaUrl: req.file ? req.file.filename : null,
+      mediaType: req.file
+        ? req.file.mimetype.startsWith("video")
+          ? "video"
+          : "image"
+        : null
+    });
+
+    const populatedPost = await post.populate(
+      "createdBy",
+      "username photoUrl"
+    );
+
+    res.status(201).json(populatedPost);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= LIKE =================
+router.post("/:id/like", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId || !isValidObjectId(userId)) {
+      return res.status(400).json({ message: "userId missing or invalid" });
+    }
+
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "postId invalid" });
+    }
+
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const alreadyLiked = post.likes.includes(userId);
+
+    if (alreadyLiked) {
+      post.likes = post.likes.filter(
+        (id) => id.toString() !== userId
+      );
+    } else {
+      post.likes.push(userId);
+
+      if (post.createdBy.toString() !== userId) {
+        await Notification.create({
+          recipient: post.createdBy,
+          sender: userId,
+          type: "like",
+          postId: post._id
+        });
+      }
+    }
+
+    await post.save();
+
+    const populatedPost = await post
+      .populate("createdBy", "username photoUrl")
+      .populate("comments.user", "username photoUrl");
+
+    res.json(populatedPost);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= SAVE POST =================
+router.post("/:id/save", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId || !isValidObjectId(userId)) {
+      return res.status(400).json({ message: "userId missing or invalid" });
+    }
+
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "postId invalid" });
+    }
+
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const alreadySaved = post.savedBy.includes(userId);
+
+    if (alreadySaved) {
+      post.savedBy = post.savedBy.filter(
+        (id) => id.toString() !== userId
+      );
+    } else {
+      post.savedBy.push(userId);
+    }
+
+    await post.save();
+
+    const populatedPost = await post
+      .populate("createdBy", "username photoUrl")
+      .populate("comments.user", "username photoUrl");
+
+    res.json(populatedPost);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= COMMENT =================
+router.post("/:id/comment", async (req, res) => {
+  try {
+    const { userId, text } = req.body;
+
+    if (!userId || !text) {
+      return res
+        .status(400)
+        .json({ message: "userId and text required" });
+    }
+
+    if (!isValidObjectId(userId)) {
+      return res.status(400).json({ message: "userId invalid" });
+    }
+
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "postId invalid" });
+    }
+
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    post.comments.unshift({
+      user: new mongoose.Types.ObjectId(userId),
+      text,
+      createdAt: new Date()
+    });
+
+    if (post.createdBy.toString() !== userId) {
+      await Notification.create({
+        recipient: post.createdBy,
+        sender: userId,
+        type: "comment",
+        postId: post._id
+      });
+    }
+
+    await post.save();
+
+    const populatedPost = await post
+      .populate("comments.user", "username photoUrl")
+      .populate("createdBy", "username photoUrl");
+
+    res.json(populatedPost);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+module.exports = router;
