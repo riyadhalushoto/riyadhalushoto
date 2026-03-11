@@ -124,13 +124,13 @@ function PostCard({ post, toggleLike, addComment }: any) {
       {post.mediaUrl && (
         post.mediaType === "video" ? (
           <video
-            src={`http://localhost:5000/uploads/${post.mediaUrl}`}
+            src={`https://riyadhalushoto.onrender.com/uploads/${post.mediaUrl}`}
             controls
             style={mediaStyle}
           />
         ) : (
           <img
-            src={`http://localhost:5000/uploads/${post.mediaUrl}`}
+            src={`https://riyadhalushoto.onrender.com/uploads/${post.mediaUrl}`}
             style={mediaStyle}
           />
         )
