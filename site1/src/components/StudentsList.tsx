@@ -39,7 +39,7 @@ export default function StudentsList() {
   // DELETE
   const handleDelete = async (id:string)=>{
     if(!window.confirm("Supprimer cet étudiant ?")) return;
-    await fetch(`http://localhost:5000/users/${id}`,{
+    await fetch(`https://riyadhalushoto.onrender.com/users/${id}`,{
       method:"DELETE",
       credentials:"include",
       headers:{
@@ -51,7 +51,7 @@ export default function StudentsList() {
   // UPDATE
   const handleUpdate = async ()=>{
     if(!editing) return;
-    await fetch(`http://localhost:5000/users/${editing._id}`,{
+    await fetch(`https://riyadhalushoto.onrender.com/${editing._id}`,{
       method:"PUT",
       headers:{
         "Content-Type":"application/json",
@@ -110,7 +110,7 @@ export default function StudentsList() {
   {currentStudents.map((s)=>{
   const photo =
   s.photoUrl
-  ? `http://localhost:5000${s.photoUrl}`
+  ? `https://riyadhalushoto.onrender.com${s.photoUrl}`
   : "https://via.placeholder.com/40";
   return(
   <tr key={s._id} style={tr}>
