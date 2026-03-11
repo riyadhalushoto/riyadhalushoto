@@ -6,7 +6,7 @@ export default function ParentDashboard() {
   const { user } = useAuth();
   const [children, setChildren] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const API_URL = "http://localhost:5000";
+  const API_URL = "https://riyadhalushoto.onrender.com";
 
   useEffect(() => {
     if (user) {
