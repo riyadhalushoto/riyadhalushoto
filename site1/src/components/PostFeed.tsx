@@ -16,7 +16,7 @@ interface Post {
   createdBy: { _id: string; username: string; photoUrl?: string };
   createdAt: string;
 }
-const socket = io("http://localhost:5000");
+const socket = io("https://riyadhalushoto.onrender.com");
 export default function PostFeed() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [title, setTitle] = useState("");
