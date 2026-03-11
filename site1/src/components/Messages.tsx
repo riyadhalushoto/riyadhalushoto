@@ -76,7 +76,7 @@ export default function Messages() {
   }, [user]);
   /* REFRESH CONVERSATIONS */
   const refreshConversations = () => {
-    axios.get("http://localhost:5000/messages/conversations", {
+    axios.get("https://riyadhalushoto.onrender.com/messages/conversations", {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setConversations(res.data));
   };
@@ -108,7 +108,7 @@ export default function Messages() {
   const deleteMessage = async (id: string) => {
     if (!window.confirm("Supprimer ce message ?")) return;
     try {
-      await axios.delete(`http://localhost:5000/messages/${id}`, {
+      await axios.delete(`https://riyadhalushoto.onrender.com/messages/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setConversations(prev =>
@@ -126,7 +126,7 @@ export default function Messages() {
     try {
       if (editingMessageId) {
         await axios.put(
-          `http://localhost:5000/messages/${editingMessageId}`,
+          `https://riyadhalushoto.onrender.com/messages/${editingMessageId}`,
           { text },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -147,12 +147,12 @@ export default function Messages() {
           form.append("file", file);
           form.append("receiver", receiver);
           if (text) form.append("text", text);
-          res = await axios.post("http://localhost:5000/messages/file", form, {
+          res = await axios.post("https://riyadhalushoto.onrender.com/messages/file", form, {
             headers: { Authorization: `Bearer ${token}` }
           });
         } else {
           res = await axios.post(
-            "http://localhost:5000/messages",
+            "https://riyadhalushoto.onrender.com/messages",
             { receiver, text },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -187,7 +187,7 @@ export default function Messages() {
     setSearch(value);
     if (!value) return setSearchResults([]);
     try {
-      const res = await axios.get(`http://localhost:5000/users/search?q=${value}`, {
+      const res = await axios.get(`https://riyadhalushoto.onrender.com/users/search?q=${value}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSearchResults(res.data);
