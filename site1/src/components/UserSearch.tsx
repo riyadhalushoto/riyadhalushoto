@@ -30,7 +30,7 @@ export default function UserSearch({ onSelect }: Props) {
     const delayDebounce = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`http://localhost:5000/users`, {
+        const res = await axios.get(`https://riyadhalushoto.onrender.com/users`, {
           params: { username: query },
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
@@ -77,7 +77,7 @@ export default function UserSearch({ onSelect }: Props) {
               style={itemStyle}
             >
               {u.photoUrl ? (
-                <img src={`http://localhost:5000${u.photoUrl}`} alt={u.username} style={avatarStyle} />
+                <img src={`https://riyadhalushoto.onrender.com${u.photoUrl}`} alt={u.username} style={avatarStyle} />
               ) : (
                 <div style={placeholderStyle}>👤</div>
               )}
