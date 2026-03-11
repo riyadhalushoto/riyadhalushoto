@@ -80,13 +80,18 @@ const upload = multer({ storage });
 
 /* -------------------- AUTHENTICATION -------------------- */
 
-// Register (Route: /register)
+// Dans server.js, remplace la route app.post("/register", ...) par celle-ci :
 app.post("/register", upload.single("photo"), async (req, res) => {
   try {
-    const { firstName, middleName, lastName, username, email, password, phone, region, studentNumber } = req.body;
+    // On récupère TOUS les champs envoyés par le frontend
+    const { 
+      firstName, middleName, lastName, username, email, 
+      password, phone, region, studentNumber,
+      dob, nationality, idNumber, country // <-- Ajoute ces champs ici
+    } = req.body;
 
     if (!firstName || !lastName || !username || !email || !password) {
-      return res.status(400).json({ message: "Tous les champs obligatoires ne sont pas remplis" });
+      return res.status(400).json({ message: "Champs obligatoires manquants" });
     }
 
     const userExists = await User.findOne({ $or: [{ username }, { email }] });
@@ -105,18 +110,25 @@ app.post("/register", upload.single("photo"), async (req, res) => {
       phone,
       region,
       studentNumber,
+      dob,           // <-- N'oublie pas de les ajouter au modèle
+      nationality,   // <-- N'oublie pas de les ajouter au modèle
+      idNumber,      // <-- N'oublie pas de les ajouter au modèle
+      country,       // <-- N'oublie pas de les ajouter au modèle
       password: hashedPassword,
       role: "student",
       photoUrl: req.file ? "/uploads/" + req.file.filename : null
     });
 
     await user.save();
-    res.json({ message: "Compte créé avec succès", user: { id: user._id, username: user.username } });
+    console.log("✅ Utilisateur créé :", username);
+    res.status(201).json({ message: "Compte créé avec succès" });
+
   } catch (err) {
     console.error("REGISTER ERROR:", err);
-    res.status(500).json({ message: "Erreur serveur lors de l'inscription" });
+    res.status(500).json({ message: "Erreur serveur : " + err.message });
   }
 });
+
 
 // Login
 app.post("/login", async (req, res) => {
