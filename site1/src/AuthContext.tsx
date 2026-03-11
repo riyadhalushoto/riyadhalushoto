@@ -31,30 +31,30 @@ export function AuthProvider({ children }: any) {
       }
 
       try {
-        const res = await fetch(`${API_URL}/profile`, {
+        const res = await fetch(`${API_URL}/users/profile`, {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        const data = await res.json();
-
-        if (res.ok && data.user) {
-          const normalizedUser = {
-            id: data.user.id || data.user._id,
-            email: data.user.email,
-            role: (data.user.role || "").toLowerCase(),
-            photoUrl: data.user.photoUrl
-          };
-          setUser(normalizedUser);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            const normalizedUser = {
+              id: data.user.id || data.user._id,
+              email: data.user.email,
+              role: (data.user.role || "").toLowerCase(),
+              photoUrl: data.user.photoUrl
+            };
+            setUser(normalizedUser);
+          }
         } else {
-          // Token invalide
-          localStorage.clear();
+          localStorage.removeItem("token");
           setUser(null);
         }
       } catch (err) {
         console.error("Auth check error:", err);
       } finally {
-        setLoading(false); // 🔹 Indispensable : libère l'écran de chargement
+        setLoading(false);
       }
     };
     checkAuth();
@@ -71,6 +71,7 @@ export function AuthProvider({ children }: any) {
     if (!res.ok) throw new Error(data.message || "Erreur de connexion");
 
     localStorage.setItem("token", data.token);
+    localStorage.setItem("userId", data.user.id || data.user._id);
     
     const normalizedUser = {
       id: data.user.id || data.user._id,
