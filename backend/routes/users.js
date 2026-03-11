@@ -118,4 +118,25 @@ res.status(500).json({ message: "Erreur serveur" });
 }
 });
 
+// ================= GET CURRENT USER PROFILE =================
+router.get("/profile", authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password -refreshToken");
+    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
+    
+    // On renvoie un objet propre pour le frontend
+    res.json({ 
+      user: { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role, 
+        username: user.username,
+        photoUrl: user.photoUrl 
+      } 
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur profil" });
+  }
+});
+
 module.exports = router;
