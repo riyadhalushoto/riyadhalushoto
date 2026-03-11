@@ -8,11 +8,11 @@ const cookieParser = require("cookie-parser");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
+const { Server } = require("socket.io");
 
 const User = require("./models/User");
-const Message = require("./models/Message");
-const Notification = require("./models/Notification");
-
+// Import des routes
 const postsRoutes = require("./routes/posts");
 const usersRoutes = require("./routes/users");
 const studentsRoutes = require("./routes/students");
@@ -23,28 +23,43 @@ const verifyRoutes = require("./routes/verify");
 
 const authenticate = require("./middleware/auth");
 
-const http = require("http");
-const { Server } = require("socket.io");
-
 const app = express();
 
-// Dossier upload pour fichiers
+// --- CONFIGURATION DOSSIER UPLOADS ---
 const uploadPath = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+// --- CONFIGURATION CORS (Production + Local) ---
+const allowedOrigins = [
+  "https://riyadhalushoto.vercel.app", // REMPLACE PAR TON URL VERCEL FINALE
+  "http://localhost:5173"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS non autorisé'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/uploads", express.static(uploadPath));
 
-// Connexion MongoDB
+// --- CONNEXION MONGODB ---
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Error:", err));
+  .connect(process.env.MONGO_URI || process.env.MONGODB_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.log("❌ MongoDB Error:", err));
 
-// JWT Tokens
+// --- UTILITAIRES JWT ---
 const generateAccessToken = (user) =>
   jwt.sign(
     { id: user._id, role: user.role, email: user.email },
@@ -53,11 +68,11 @@ const generateAccessToken = (user) =>
   );
 
 const generateRefreshToken = (user) =>
-  jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
+  jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET || "fallback_refresh_secret", {
     expiresIn: "7d"
   });
 
-// Multer storage
+// --- CONFIGURATION MULTER ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
@@ -65,19 +80,20 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* -------------------- AUTHENTICATION -------------------- */
-// Register
+
+// Register (Route: /register)
 app.post("/register", upload.single("photo"), async (req, res) => {
   try {
     const { firstName, middleName, lastName, username, email, password, phone, region, studentNumber } = req.body;
 
-    if (!firstName || !lastName || !username || !email || !password)
+    if (!firstName || !lastName || !username || !email || !password) {
       return res.status(400).json({ message: "Tous les champs obligatoires ne sont pas remplis" });
+    }
 
-    if (await User.findOne({ username }))
-      return res.status(400).json({ message: "Username déjà utilisé" });
-
-    if (await User.findOne({ email }))
-      return res.status(400).json({ message: "Email déjà utilisé" });
+    const userExists = await User.findOne({ $or: [{ username }, { email }] });
+    if (userExists) {
+      return res.status(400).json({ message: "Username ou Email déjà utilisé" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -96,11 +112,10 @@ app.post("/register", upload.single("photo"), async (req, res) => {
     });
 
     await user.save();
-
-    res.json({ message: "Compte créé avec succès", user });
+    res.json({ message: "Compte créé avec succès", user: { id: user._id, username: user.username } });
   } catch (err) {
     console.error("REGISTER ERROR:", err);
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(500).json({ message: "Erreur serveur lors de l'inscription" });
   }
 });
 
@@ -108,12 +123,11 @@ app.post("/register", upload.single("photo"), async (req, res) => {
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Email ou mot de passe incorrect" });
-
-    if (!(await bcrypt.compare(password, user.password)))
+    
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(400).json({ message: "Email ou mot de passe incorrect" });
+    }
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -121,8 +135,12 @@ app.post("/login", async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "Strict", maxAge: 15 * 60 * 1000 });
-    res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "Strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie("accessToken", accessToken, { 
+        httpOnly: true, 
+        secure: true, // Requis pour HTTPS sur Render/Vercel
+        sameSite: "None", // Requis pour les cookies cross-origin
+        maxAge: 15 * 60 * 1000 
+    });
 
     res.json({
       token: accessToken,
@@ -130,18 +148,6 @@ app.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Profile
-app.get("/profile", authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
-    res.json({ user: { id: user._id, email: user.email, role: user.role, photoUrl: user.photoUrl, username: user.username } });
-  } catch (err) {
-    console.error("PROFILE ERROR:", err);
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
@@ -155,58 +161,25 @@ app.use("/messages", messagesRoutes);
 app.use("/payments", paymentsRoutes);
 app.use("/verify", verifyRoutes);
 
-/* -------------------- SERVER -------------------- */
+/* -------------------- SERVER & SOCKET.IO -------------------- */
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "http://localhost:5173", credentials: true } });
+const io = new Server(server, { 
+    cors: { 
+        origin: allowedOrigins, 
+        credentials: true 
+    } 
+});
+
 app.set("socketio", io);
 
-// Online users
 const onlineUsers = {};
 
 io.on("connection", (socket) => {
-  console.log("Utilisateur connecté :", socket.id);
-
-  // Join
   socket.on("join", (userId) => {
     onlineUsers[userId] = socket.id;
     io.emit("user_online", userId);
   });
 
-  // Typing
-  socket.on("typing", ({ sender, receiver }) => {
-    const receiverSocket = onlineUsers[receiver];
-    if (receiverSocket) io.to(receiverSocket).emit("typing", sender);
-  });
-
-  socket.on("stop_typing", ({ sender, receiver }) => {
-    const receiverSocket = onlineUsers[receiver];
-    if (receiverSocket) io.to(receiverSocket).emit("stop_typing", sender);
-  });
-
-  // Send message
-  socket.on("send_message", (message) => {
-    const receiverId = message.receiver?._id || message.receiver;
-    const receiverSocket = onlineUsers[receiverId];
-    if (receiverSocket) {
-      io.to(receiverSocket).emit("receive_message", message);
-      io.to(receiverSocket).emit("message_delivered", message._id);
-    }
-  });
-
-  // Message seen
-  socket.on("message_seen", ({ messageId, sender }) => {
-    const senderSocket = onlineUsers[sender];
-    if (senderSocket) io.to(senderSocket).emit("message_seen", messageId);
-  });
-  
-  if (process.env.NODE_ENV === "production") {
-  app.use(express.static("../frontend/dist"));
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
-  });
-}
-
-  // Disconnect
   socket.on("disconnect", () => {
     for (const userId in onlineUsers) {
       if (onlineUsers[userId] === socket.id) {
@@ -218,8 +191,15 @@ io.on("connection", (socket) => {
   });
 });
 
-/* -------------------- START SERVER -------------------- */
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
+// Gestion du déploiement Frontend (si servi par le même serveur)
+if (process.env.NODE_ENV === "production") {
+    app.use(express.static(path.join(__dirname, "../frontend/dist")));
+    app.get("*", (req, res) => {
+        res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
+    });
+}
 
-module.exports = { authenticate };
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
