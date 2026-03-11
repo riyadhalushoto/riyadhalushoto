@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000"; // ou ton IP serveur
+const API_URL = "https://riyadhalushoto.onrender.com"; // ou ton IP serveur
 export async function apiFetch(path: string, options: any = {}) {
   const token = localStorage.getItem("token");
   try {
