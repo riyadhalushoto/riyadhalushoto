@@ -16,7 +16,7 @@ export default function Payments() {
     setLoading(true);
     setMessage(""); // Reset message
     try {
-      const res = await fetch("http://localhost:5000/payments/initialize", {
+      const res = await fetch("https://riyadhalushoto.onrender.com/payments/initialize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
