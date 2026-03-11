@@ -31,7 +31,7 @@ export default function StudentDashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
           {user.photoUrl ? (
             <img 
-              src={`http://localhost:5000${user.photoUrl}`} 
+              src={`https://riyadhalushoto.onrender.com${user.photoUrl}`} 
               style={avatarStyle} 
               alt="Profil"
               onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/40"; }}
