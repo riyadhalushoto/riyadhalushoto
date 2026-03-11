@@ -13,7 +13,7 @@ export default function StudentCardBank() {
 
   const frontRef = useRef<HTMLDivElement>(null);
   const backRef = useRef<HTMLDivElement>(null);
-  const API_URL = "http://localhost:5000";
+  const API_URL = "https://riyadhalushoto.onrender.com";
   const token = localStorage.getItem("token");
 
   async function search() {
