@@ -10,7 +10,7 @@ export default function AdminNotifications() {
 
   useEffect(() => {
     // Initialisation du socket
-    const newSocket = io("http://localhost:5000", { withCredentials: true });
+    const newSocket = io("https://riyadhalushoto.onrender.com", { withCredentials: true });
     setSocket(newSocket);
 
     // Chargement initial
