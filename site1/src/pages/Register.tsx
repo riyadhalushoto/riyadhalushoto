@@ -79,7 +79,7 @@ try{
     formData.append("photo",photo)  
   }  
 
-  const res = await fetch("http://localhost:5000/register",{  
+  const res = await fetch("https://riyadhalushoto.onrender.com/register",{  
     method:"POST",  
     body:formData  
   })  
