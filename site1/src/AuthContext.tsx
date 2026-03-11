@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://riyadhalushoto.onrender.com";
 
 interface UserType {
   id: string;
