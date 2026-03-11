@@ -19,7 +19,7 @@ export default function StudentsList() {
   const fetchStudents = async () => {
     try{
       const res = await fetch(
-        "http://localhost:5000/users?role=student",
+        "https://riyadhalushoto.onrender.com/users?role=student",
         {
           credentials:"include",
           headers:{
