@@ -33,8 +33,7 @@ if (!fs.existsSync(uploadPath)) {
 
 // --- CONFIGURATION CORS (Production + Local) ---
 const allowedOrigins = [
-  "https://riyadhalushoto.vercel.app", // REMPLACE PAR TON URL VERCEL FINALE
-  "http://localhost:5173"
+  "https://riyadhalushoto.vercel.app", // REMPLACE PAR TON URL VERCEL FINAL
 ];
 
 app.use(cors({
