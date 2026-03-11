@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { useAuth } from "../AuthContext";
-const socket = io("http://localhost:5000", { withCredentials: true });
+const socket = io("https://riyadhalushoto.onrender.com", { withCredentials: true });
 export default function Messages() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<any[]>([]);
