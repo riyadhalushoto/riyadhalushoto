@@ -147,35 +147,36 @@ app.use("/messages", messagesRoutes);
 app.use("/payments", paymentsRoutes);
 app.use("/verify", verifyRoutes);
 
+// ... (reste du code inchangé jusqu'à la création du serveur)
+
 const server = http.createServer(app);
+
+// CONFIGURATION SOCKET.IO AMÉLIORÉE
 const io = new Server(server, { 
     cors: { 
-        origin: allowedOrigins, 
+        origin: "https://riyadhalushoto.vercel.app", 
+        methods: ["GET", "POST"],
         credentials: true 
-    } 
+    },
+    transports: ['websocket', 'polling'] // Force le support des deux modes
 });
 
 app.set("socketio", io);
 
-const onlineUsers = {};
-
 io.on("connection", (socket) => {
+  console.log("⚡ Un utilisateur s'est connecté :", socket.id);
+
   socket.on("join", (userId) => {
-    onlineUsers[userId] = socket.id;
-    io.emit("user_online", userId);
+    socket.join(userId);
+    console.log(`👤 Utilisateur ${userId} a rejoint sa room`);
   });
+
   socket.on("disconnect", () => {
-    for (const userId in onlineUsers) {
-      if (onlineUsers[userId] === socket.id) {
-        delete onlineUsers[userId];
-        io.emit("user_offline", userId);
-        break;
-      }
-    }
+    console.log("❌ Déconnexion");
   });
 });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 Serveur en ligne sur le port ${PORT}`);
 });
